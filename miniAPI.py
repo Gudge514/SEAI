@@ -272,15 +272,13 @@ if __name__ == "__main__":
     os.makedirs("templates/", exist_ok=True)
     retrievers = []
     
-    try:
-        #connector = RedisConnector('172.19.241.11', 6379)
-        redis_connector = RedisConnector(redis_server, redis_port)
-    except:
+    #connector = RedisConnector('172.19.241.11', 6379)
+    redis_connector = RedisConnector(redis_server, redis_port)
+    if redis_connector.checkConncetion()=="Not Available":
         raise Exception("Redis连接失败")
     
-    try:
-        mongo_connector = MongoConnector(mongo_server, mongo_port, mongo_username, mongo_password)
-    except:
+    mongo_connector = MongoConnector(mongo_server, mongo_port, mongo_username, mongo_password)
+    if mongo_connector.checkConncetion()=="Not Available":
         raise Exception("Mongo连接失败")
     
     uvicorn.run(app, host="0.0.0.0", port=8901)

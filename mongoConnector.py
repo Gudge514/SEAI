@@ -57,9 +57,6 @@ class MongoConnector():
         
         projection = {
             "_id": 0,
-            "vdbs": 0,
-            "tools": 0,
-            "tId": 0,
         }
         cursor = self.mongo_client["SEAI"]["agents"].find(query, projection)
         return list(cursor)
