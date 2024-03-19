@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import urllib.parse
 import json
+import logging
 
 from redisConnector import RedisConnector
 from mongoConnector import MongoConnector
@@ -96,6 +97,7 @@ def makeRAGRes(message, retriever, client, history, user, cId):
         #return response
     except Exception as e:
         redis_connector.delMessage(cId, mId)
+        logging.error(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - failed to connect")
         yield f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - failed to connect"
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -105,7 +107,7 @@ def makeRes(message, client, history, user, cId):
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             stream=True,
-            messages=history
+            messages=history+[{"role": "user", "content": f"{message}"}],
         )
         ans = ""
         for chunk in response:
@@ -115,6 +117,7 @@ def makeRes(message, client, history, user, cId):
         redis_connector.addMessage(user, cId, ans, "assistant", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     except Exception as e:
         redis_connector.delMessage(cId, mId)
+        logging.error(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - failed to connect")
         yield f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - failed to connect"
         raise HTTPException(status_code=500, detail=str(e))
     # return response
@@ -213,7 +216,8 @@ def chat(chatRequest: ChatRequest):
     for mId in redis_connector.getMessages(chatRequest.cId):
         m = redis_connector.getMessage(mId)
         history.append({"role": m["role"], "content": m["content"]})
-    print(history)
+    #print(history)
+    logging.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {history}")
     
     if chatRequest.retriever!="":
         if chatRequest.retriever not in [retriever["name"] for retriever in retrievers]:
@@ -281,4 +285,6 @@ if __name__ == "__main__":
     if mongo_connector.checkConncetion()=="Not Available":
         raise Exception("Mongo连接失败")
     
+    logging.basicConfig(filename='miniAPI.log', level=logging.DEBUG)
+    logging.info(f"API started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     uvicorn.run(app, host="0.0.0.0", port=8901)
