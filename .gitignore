@@ -1,2 +1,4 @@
 config.ini
 miniAPI.log
+\templates
+\__pycache__
