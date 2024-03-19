@@ -245,6 +245,22 @@ def addConversation(data:dict):
     redis_connector.addMessage(data["user"], cId, data["persona"], "system", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), True)
     return {"cId": cId}
 
+@app.post("/api/v1/addConversationFromTemplate")
+def addConversationFromTemplate(data:dict):
+    templates = os.listdir("templates")
+    tId = data["tId"]
+    if (tId in [os.path.splitext(temp)[0] for temp in templates]):
+        with open(f"templates/{tId}.json", "r", encoding='utf-8') as f:
+            cId = redis_connector.addConversation(data["user"])
+            try:
+                template = json.loads(f.read())
+                for t in template["template"]:
+                    redis_connector.addMessage(data["user"], cId, t["content"], t["role"], datetime.now().strftime("%Y-%m-%d %H:%M:%S"), True)
+            except:
+                redis_connector.delConversation(data["user"], cId)
+        return {"cId": cId}
+    return {"error": "template not found"}
+
 @app.post("/api/v1/addUser")
 def addUser(data:dict):
     redis_connector.addUser(data["user"])
