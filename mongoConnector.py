@@ -1,6 +1,7 @@
 import pymongo
 import uuid
 import time
+from datetime import datetime
 
 def generate_unique_id():
     # 生成UUID
@@ -35,7 +36,7 @@ class MongoConnector():
                 "tId": tId, 
                 "vdbs": vdbs, 
                 "tools": tools,
-                "create_time": time.time(),
+                "create_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             })
         return aId
         
