@@ -22,7 +22,9 @@ from langchain.document_loaders import TextLoader
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.embeddings import OpenAIEmbeddings
+from langchain_community.embeddings import JinaEmbeddings
 from langchain.vectorstores import Chroma
+from langchain_community.embeddings import MiniMaxEmbeddings
 
 # 项目配置
 config = configparser.ConfigParser()
@@ -34,6 +36,9 @@ mongo_server = config.get('Settings', 'mongo_server')
 mongo_port = config.get('Settings', 'mongo_port')
 mongo_username = config.get('Settings', 'mongo_username')
 mongo_password = config.get('Settings', 'mongo_password')
+
+os.environ["MINIMAX_GROUP_ID"] = "1768536437306691771"
+os.environ["MINIMAX_API_KEY"] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJHcm91cE5hbWUiOiJLZWl0aCIsIlVzZXJOYW1lIjoiS2VpdGgiLCJBY2NvdW50IjoiIiwiU3ViamVjdElEIjoiMTc2ODUzNjQzNzMxNTA4MDM3OSIsIlBob25lIjoiMTUxNjExNjU5NzMiLCJHcm91cElEIjoiMTc2ODUzNjQzNzMwNjY5MTc3MSIsIlBhZ2VOYW1lIjoiIiwiTWFpbCI6IiIsIkNyZWF0ZVRpbWUiOiIyMDI0LTAzLTIwIDIxOjM4OjU1IiwiaXNzIjoibWluaW1heCJ9.cpaXmCZuknX5D49hbnkm8cu2Sl-sOSeYPdPFIKPpVV0mhluS5koWMlLTOE_ortf3e6-g9xa5ivg_CZeOCVn6A2or9yKuCZ2nkEsyP1XFJFA6AoqW3GG2dqehuEDItQ_9BGk4NZ_dO0NnZowFwCejLtZkgXISZiBPOBOEYcJ2nSEFUKUoeKhuZuL8_-RdvNLHGZ82iogACw9Blneo8toxu43gHGIp0jMJfGx18aQp8rimuh2lCpdyxWc4OUduwEWeVXgSge35CrdA6m6h8ZcLRjh2PEXYGiE0tbtott7H4zxAPuTu1R0dH-QOjIWc_dn7kE6s3c9mLd4MmetkFKoreA"
 
 
 def generate_timestamped_filename(original_filename):
@@ -54,7 +59,10 @@ def createDBFrom(filename):
     docs = text_splitter.split_documents(documents)
     
     #embedding_function = SentenceTransformerEmbeddings(model_name="paraphrase-MiniLM-L6-v2")
-    embedding_function = HuggingFaceEmbeddings(model_name=embedding_path)
+    #embedding_function = JinaEmbeddings(
+    #    jina_api_key="jina_be39166027554b7897831d22812be11bYeb8ozo9X_2NcZuj0dHEnPPzIrwD", model_name="jina-embeddings-v2-base-zh"
+    #)
+    embedding_function = MiniMaxEmbeddings()
     db = Chroma.from_documents(documents=docs, embedding=embedding_function, persist_directory=persist_directory)
     db.persist()
     return f"{base_name}_{extension[1::]}"
@@ -62,7 +70,10 @@ def createDBFrom(filename):
 def loadDB(dbname):
     if not os.path.exists(f"db/{dbname}"):
         return None
-    embedding_function = HuggingFaceEmbeddings(model_name=embedding_path)
+    #embedding_function = JinaEmbeddings(
+    #    jina_api_key="jina_be39166027554b7897831d22812be11bYeb8ozo9X_2NcZuj0dHEnPPzIrwD", model_name="jina-embeddings-v2-base-zh"
+    #)
+    embedding_function = MiniMaxEmbeddings()
     db = Chroma(persist_directory=f"db/{dbname}", embedding_function=embedding_function)
     return db
 
@@ -285,22 +296,33 @@ def getAgents(user:str):
     return mongo_connector.getAgents(user)
 
 # 初始化
-if __name__ == "__main__":
-    import uvicorn
+async def startup_event():
     os.makedirs("files/", exist_ok=True)
     os.makedirs("db/", exist_ok=True)
     os.makedirs("templates/", exist_ok=True)
+    global retrievers
     retrievers = []
     
     #connector = RedisConnector('172.19.241.11', 6379)
+    global redis_connector
     redis_connector = RedisConnector(redis_server, redis_port)
     if redis_connector.checkConncetion()=="Not Available":
         raise Exception("Redis连接失败")
+    logging.info("Redis已连接")
     
+    
+    global mongo_connector
     mongo_connector = MongoConnector(mongo_server, mongo_port, mongo_username, mongo_password)
     if mongo_connector.checkConncetion()=="Not Available":
         raise Exception("Mongo连接失败")
+    logging.info("Mongo已连接")
     
     logging.basicConfig(filename='miniAPI.log', level=logging.DEBUG)
     logging.info(f"API started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+app.add_event_handler("startup", startup_event)
+
+if __name__ == "__main__":
+    import uvicorn
+    
     uvicorn.run(app, host="0.0.0.0", port=8901)
