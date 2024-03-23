@@ -34,7 +34,8 @@ class MongoConnector():
                 "user": user, 
                 "tId": tId, 
                 "vdbs": vdbs, 
-                "tools": tools
+                "tools": tools,
+                "create_time": time.time(),
             })
         return aId
         
